@@ -73,17 +73,17 @@ function Main() {
           <Grid.Row stretched>
             <Balances />
           </Grid.Row>
-          <Grid.Row>
+          {/* <Grid.Row>
             <Transfer />
             <Upgrade />
-          </Grid.Row>
+          </Grid.Row> */}
           <Grid.Row>
             <Interactor />
             <Events />
           </Grid.Row>
-          <Grid.Row>
+          {/* <Grid.Row>
             <TemplateModule />
-          </Grid.Row>
+          </Grid.Row> */}
         </Grid>
       </Container>
       <DeveloperConsole />
