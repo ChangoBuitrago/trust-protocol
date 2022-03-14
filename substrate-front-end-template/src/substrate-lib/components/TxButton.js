@@ -12,9 +12,9 @@ function TxButton({
   disabled = false,
   label,
   setStatus,
+  onClick: txOnClickHandler = null,
   style = null,
   type = 'QUERY',
-  txOnClickHandler = null,
 }) {
   // Hooks
   const { api, currentAccount } = useSubstrateState()
