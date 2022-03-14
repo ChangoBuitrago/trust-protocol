@@ -3,4 +3,5 @@
   <h1 style="padding:25px;">
     The Trust Protocol
   </h1>
+  <h4>Enabling the interoperability layer between multiple roots of trust.</h4>
 </div>
