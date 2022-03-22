@@ -19,9 +19,9 @@ import Events from './Events'
 import Interactor from './Interactor'
 import Metadata from './Metadata'
 import NodeInfo from './NodeInfo'
-import TemplateModule from './TemplateModule'
-import Transfer from './Transfer'
-import Upgrade from './Upgrade'
+// import TemplateModule from './TemplateModule'
+// import Transfer from './Transfer'
+// import Upgrade from './Upgrade'
 import Kitties from './Kitties'
 
 function Main() {
@@ -74,20 +74,20 @@ function Main() {
           <Grid.Row>
             <Kitties />
           </Grid.Row>
-          <Grid.Row stretched>
-            <Balances />
-          </Grid.Row>
-          <Grid.Row>
-            <Transfer />
-            <Upgrade />
-          </Grid.Row>
           <Grid.Row>
             <Interactor />
             <Events />
           </Grid.Row>
-          <Grid.Row>
-            <TemplateModule />
+          <Grid.Row stretched>
+            <Balances />
           </Grid.Row>
+          {/* <Grid.Row>
+            <Transfer />
+            <Upgrade />
+          </Grid.Row> */}
+          {/* <Grid.Row>
+            <TemplateModule />
+          </Grid.Row> */}
         </Grid>
       </Container>
       <DeveloperConsole />

@@ -17,7 +17,16 @@ pub mod pallet {
 	use frame_system::pallet_prelude::*;
 	use scale_info::TypeInfo;
 	use sp_io::hashing::blake2_128;
-	use sp_runtime::ArithmeticError;
+	use sp_io::offchain_index;
+	const ONCHAIN_TX_KEY: &[u8] = b"kitties::indexing1";
+	use sp_runtime::{
+		ArithmeticError,
+		offchain::{
+			storage::{StorageValueRef},
+		},
+		RuntimeDebug,
+	};
+	use sp_std::vec::Vec;
 
 	#[cfg(feature = "std")]
 	use frame_support::serde::{Deserialize, Serialize};
@@ -32,7 +41,6 @@ pub mod pallet {
 	// NB: required because of the requirements on the impl of `parity_scale_codec::MaxEncodedLen` for `Kitty<T>
 	// https://substrate.stackexchange.com/questions/619/how-to-fix-parity-scale-codecmaxencodedlen-is-not-implemented-for-t
 	#[codec(mel_bound())] //
-
 	pub struct Kitty<T: Config> {
 		// Using 16 bytes to represent a kitty DNA
 		pub dna: [u8; 16],
@@ -59,8 +67,10 @@ pub mod pallet {
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
-		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
-
+		type Event: From<Event<Self>>
+			+ IsType<<Self as frame_system::Config>::Event>
+			+ TryInto<Event<Self>>;
+			
 		/// The Currency handler for the kitties pallet.
 		type Currency: Currency<Self::AccountId>;
 
@@ -146,6 +156,53 @@ pub mod pallet {
 			// supplied
 			for (account, dna, gender) in &self.kitties {
 				assert!(Pallet::<T>::mint(account, *dna, *gender).is_ok());
+			}
+		}
+	}
+
+	#[derive(Encode, Decode, RuntimeDebug, TypeInfo)]
+	#[scale_info(skip_type_params(T))]
+	pub struct IndexingData<T: Config> {
+		pub key: Vec<u8>, 
+		pub value: Event<T>,
+	}
+
+	#[pallet::hooks]
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		fn on_finalize(_n: BlockNumberFor<T>) {
+			// We can read the events here because offchain worker doesn't affect PoV.
+			let key = Self::derived_key(frame_system::Pallet::<T>::block_number());
+			let events = <frame_system::Pallet<T>>::read_events_no_consensus();
+
+			events
+				.into_iter()
+				.filter_map(|event_record| {
+					let local_event = <T as Config>::Event::from(event_record.event);
+					local_event.try_into().ok()
+				})
+				.for_each(|evt| {
+					match evt {
+						Event::Created { kitty: _, owner: _ } => { 
+							log::info!("SubstrateKitties: {:?}", evt);
+
+							let data = IndexingData::<T> { key: b"kittys_events".to_vec(), value: evt };
+							offchain_index::set(&key, &data.encode());
+						},
+						_ => ()
+					}
+				});
+		}
+
+		fn offchain_worker(block_number: T::BlockNumber) {
+			// Reading back the off-chain indexing value. This is exactly the same as reading from
+			// ocw local storage.
+			let key = Self::derived_key(block_number);
+			let storage_ref = StorageValueRef::persistent(&key);
+			
+			if let Ok(Some(data)) = storage_ref.get::<IndexingData<T>>() {
+				log::info!("local storage data: {:?}, {:?}", sp_std::str::from_utf8(&data.key).unwrap_or("error"), data.value);
+			} else {
+				log::info!("Error reading from local storage.");
 			}
 		}
 	}
@@ -399,6 +456,17 @@ pub mod pallet {
 			Self::deposit_event(Event::Transferred { from, to, kitty: kitty_id });
 
 			Ok(())
+		}
+
+		// generate a key used later for indexing
+		fn derived_key(block_number: T::BlockNumber) -> Vec<u8> {
+			block_number.using_encoded(|encoded_bn| {
+				ONCHAIN_TX_KEY.clone().into_iter()
+					.chain(b"/".into_iter())
+					.chain(encoded_bn)
+					.copied()
+					.collect::<Vec<u8>>()
+			})
 		}
 	}
 }
